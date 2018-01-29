@@ -1,0 +1,93 @@
+from flask import Flask, render_template, request, make_response, redirect, session, render_template_string, config, flash
+import sqlite3
+from hashlib import sha512
+import os
+
+
+app = Flask(__name__)
+app.secret_key = 'SoSecret_DoYouKnowThat?'
+conn = sqlite3.connect('example.db')
+db = conn.cursor()
+
+
+def hash_string(s):
+    return sha512(s.encode()).hexdigest()
+
+def check_login(user):
+    query = 'SELECT * FROM users WHERE login = "{}"'.format(user)
+    db.execute(query)
+    exist = db.fetchone()
+    if exist is None:
+        return False
+    else:
+        return True
+
+
+def check_login(user):  # User check function
+    query = 'SELECT * FROM users WHERE login = "{}"'.format(user)
+    db.execute(query)
+    exist = db.fetchone()
+    if exist is None:
+        return False
+    else:
+        return True
+
+
+def auth(login, password):  # Authorization check function
+    query = 'SELECT * FROM users WHERE password ="{}"'.format(password)
+    db.execute(query)
+    result = db.fetchone()
+    if result is None:
+        return False
+    else:
+        return True
+
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+
+@app.route('/login', methods=['GET', 'POST'])
+def log():
+    if request.method == 'GET':
+        return render_template('login.html')
+    else:
+        login = request.form.get('login', '')
+        password = request.form.get('password', '')
+        if login == '' or password == '':
+            flash("Login or password is missing. Try Again")
+            render_template('login.html')
+
+        password = hash_string(password)
+        query = 'SELECT * FROM users WHERE login = ? and password = ?'
+        db.execute(query, [login, password])
+        result = db.fetchone()
+        if result is None:
+            flash("User doesn't exist or password is incorrect. Try again")
+        #Тут должна быть сессия
+        flash('You were successfully logged in')
+        return render_template('storage.html')
+
+@app.route('/register', methods=['GET', 'POST'])
+def reg():
+    if request.method == 'GET':
+        return render_template('register.html')
+    else:
+        login = request.form.get('login', '')
+        password = request.form.get('password', '')
+
+        if login == '' or password == '':
+            flash("Login or password is missing")
+            render_template('register.html')
+
+        if check_login(login):
+            flash("This login already exist")
+            render_template('register.html')
+        password = hash_string(password)
+        query = 'INSERT INTO users (login,password) VALUES ("{}","{}")'.format(login, password)
+        db.execute(query)
+        conn.commit()
+        flash("Success")
+        return render_template('login.html')
+
